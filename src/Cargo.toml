@@ -4,3 +4,6 @@ members = [
     "client",
     "server"
 ]
+
+[workspace.dependencies]
+zmq="0.9"
