@@ -1,31 +1,30 @@
 #![crate_name = "server"]
 
-//! Weather update server
-//! Binds PUB socket to tcp://*:5556 and ipc://weather.ipc
-//! Publishes random weather updates
-
-use rand::Rng;
-
 fn main() {
     let context = zmq::Context::new();
-    let publisher = context.socket(zmq::PUB).unwrap();
+    let xpub_socket = context.socket(zmq::XPUB).expect("failed to create pubSocket");
+    let xsub_socket = context.socket(zmq::XSUB).expect("failed to create subSocket");
 
-    assert!(publisher.bind("tcp://*:5556").is_ok());
-    assert!(publisher.bind("ipc://weather.ipc").is_ok());
-
-    let mut rng = rand::thread_rng();
+    xpub_socket.bind("tcp://*:5563").expect("couldn't bind XPUB socket");
+    xsub_socket.bind("tcp://*:5564").expect("couldn't bind XSUB socket");
 
     loop {
-        let zipcode = rng.gen_range(0..100_000);
-        let temperature = rng.gen_range(-80..135);
-        let relhumidity = rng.gen_range(10..60);
-
-        // this is slower than C because the current format! implementation is
-        // very, very slow. Several orders of magnitude slower than glibc's
-        // sprintf
-        let update = format!("{:05} {} {}", zipcode, temperature, relhumidity);
-        publisher.send(&update, 0).unwrap();
+        let mut items = [
+            xpub_socket.as_poll_item(zmq::POLLIN),
+            xsub_socket.as_poll_item(zmq::POLLIN),
+        ];
+        zmq::poll(&mut items, -1).unwrap();
+        println!("here!!");
+        if items[0].is_readable() {
+            let message = xpub_socket.recv_string(0).unwrap().unwrap();
+            println!("Got subscription: {}", message);
+            xsub_socket.send(message.as_bytes(), 0).unwrap();
+        }
+        if items[1].is_readable() {
+            let envelope = xsub_socket.recv_string(0).unwrap().unwrap();
+            print!("Got message: [{}]", envelope);
+            let message = xsub_socket.recv_string(0).unwrap().unwrap();
+            println!("{}", message);
+        }
     }
-
-    // note: destructors mean no explicit cleanup necessary
 }
