@@ -1,4 +1,4 @@
-#![crate_name = "client"]
+#![crate_name = "pub_sub"]
 
 use std::env;
 use std::thread::sleep;
