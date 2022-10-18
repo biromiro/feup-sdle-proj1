@@ -1,30 +1,70 @@
 #![crate_name = "server"]
 
+fn handle_put(sub: &zmq::Socket) {
+    let envelope = sub.recv_string(0).unwrap().unwrap();
+    print!("Got message: [{}]", envelope);
+    let message = sub.recv_string(0).unwrap().unwrap();
+    println!("{}", message);
+}
+
+fn handle_sub(sub: &zmq::Socket, topic: &[u8]) -> Result<(), zmq::Error> {
+    println!("subscribed to [{}]", topic.escape_ascii());
+    sub.set_subscribe(topic)
+}
+
+fn handle_unsub(sub: &zmq::Socket, topic: &[u8]) -> Result<(), zmq::Error> {
+    sub.set_unsubscribe(topic)
+}
+
+fn handle_get() {
+    
+}
+
+fn handle_request(req: &zmq::Socket, sub: &zmq::Socket) -> Result<(), zmq::Error> {
+    let messages = req.recv_multipart(0).unwrap();
+    println!("Got request:");
+    for message in &messages {
+        println!("text: {}", message.escape_ascii());
+    }
+    let request = std::str::from_utf8(messages.get(0).unwrap()).unwrap();
+    match request {
+        "sub" => {
+            let topic = &messages.get(1).unwrap()[..];
+            handle_sub(sub, topic)
+        }
+        "unsub" => {
+            let topic = &messages.get(1).unwrap()[..];
+            handle_unsub(sub, topic)
+        }
+        "get" => {
+            Ok(handle_get())
+        }
+        _ => Err(zmq::Error::ENOBUFS) //fix
+    }
+}
+
 fn main() {
     let context = zmq::Context::new();
-    let xpub_socket = context.socket(zmq::XPUB).expect("failed to create pubSocket");
-    let xsub_socket = context.socket(zmq::XSUB).expect("failed to create subSocket");
+    let reply = context.socket(zmq::REP).expect("failed to create router socket");
+    let sub = context.socket(zmq::SUB).expect("failed to create sub socket");
 
-    xpub_socket.bind("tcp://*:5563").expect("couldn't bind XPUB socket");
-    xsub_socket.bind("tcp://*:5564").expect("couldn't bind XSUB socket");
+    reply.bind("tcp://*:5563").expect("couldn't bind router socket");
+    sub.bind("tcp://*:5564").expect("couldn't bind sub socket");
+
+    println!("ok. looping...");
 
     loop {
         let mut items = [
-            xpub_socket.as_poll_item(zmq::POLLIN),
-            xsub_socket.as_poll_item(zmq::POLLIN),
+            reply.as_poll_item(zmq::POLLIN),
+            sub.as_poll_item(zmq::POLLIN),
         ];
         zmq::poll(&mut items, -1).unwrap();
         println!("here!!");
         if items[0].is_readable() {
-            let message = xpub_socket.recv_string(0).unwrap().unwrap();
-            println!("Got subscription: {}", message);
-            xsub_socket.send(message.as_bytes(), 0).unwrap();
+            handle_request(&reply, &sub).unwrap();
         }
         if items[1].is_readable() {
-            let envelope = xsub_socket.recv_string(0).unwrap().unwrap();
-            print!("Got message: [{}]", envelope);
-            let message = xsub_socket.recv_string(0).unwrap().unwrap();
-            println!("{}", message);
+            handle_put(&sub);
         }
     }
 }
