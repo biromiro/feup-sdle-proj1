@@ -7,13 +7,18 @@ fn handle_put(sub: &zmq::Socket) {
     println!("{}", message);
 }
 
-fn handle_sub(sub: &zmq::Socket, topic: &[u8]) -> Result<(), zmq::Error> {
+fn handle_sub(sub: &zmq::Socket,reply: &zmq::Socket, topic: &[u8]) -> Result<(), zmq::Error> {
     println!("subscribed to [{}]", topic.escape_ascii());
-    sub.set_subscribe(topic)
+    sub.set_subscribe(topic).unwrap();
+    let ack = String::from("ACK: Subscribed sucesfully");
+    reply.send_multipart([&ack], 0)
 }
 
-fn handle_unsub(sub: &zmq::Socket, topic: &[u8]) -> Result<(), zmq::Error> {
-    sub.set_unsubscribe(topic)
+fn handle_unsub(sub: &zmq::Socket,reply: &zmq::Socket, topic: &[u8]) -> Result<(), zmq::Error> {
+    println!("unsubscribed from [{}]", topic.escape_ascii());
+    sub.set_unsubscribe(topic).unwrap();
+    let ack = String::from("ACK: Unsubscribed sucesfully");
+    reply.send_multipart([&ack], 0)
 }
 
 fn handle_get() {
@@ -30,11 +35,11 @@ fn handle_request(req: &zmq::Socket, sub: &zmq::Socket) -> Result<(), zmq::Error
     match request {
         "sub" => {
             let topic = &messages.get(1).unwrap()[..];
-            handle_sub(sub, topic)
+            handle_sub(sub,req , topic)
         }
         "unsub" => {
             let topic = &messages.get(1).unwrap()[..];
-            handle_unsub(sub, topic)
+            handle_unsub(sub, req, topic)
         }
         "get" => {
             Ok(handle_get())
