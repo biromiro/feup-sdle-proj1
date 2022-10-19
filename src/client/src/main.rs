@@ -50,7 +50,7 @@ fn connect(ctx: &zmq::Context, sock_type: zmq::SocketType) -> zmq::Socket {
 
 fn subscribe(socket: &zmq::Socket, id: &String, topic: &String) {
     socket.set_identity(id.as_bytes()).unwrap();
-    socket.send_multipart(["sub", topic], 0).expect("failed subscribing");
+    socket.send_multipart(["sub", topic, id], 0).expect("failed subscribing");
     println!("Waiting for reply...");
     let response = socket.recv_multipart(0).expect("failed subscribing");
 
@@ -111,16 +111,16 @@ fn parse_put(args: &[String]) -> Operation {
 }
 
 fn parse_args(args: Vec<String>) -> Request {
-    if args.len() < 3 || args.len() > 5 {
+    if args.len() < 2 || args.len() > 4 {
         panic!("{}", USAGE);
     }
-    let mode = String::from(&args[1]);
-    let id = String::from(&args[2]);
+    let mode = String::from(&args[0]);
+    let id = String::from(&args[1]);
     let operation = match mode.as_str() {
-        "put" => parse_put(&args[2..]),
-        "get" => Operation::Get(args.get(2).expect(USAGE).to_string()),
-        "subscribe" => Operation::Sub(args.get(3).expect(USAGE).to_string()),
-        "unsubscribe" => Operation::Unsub(args.get(3).expect(USAGE).to_string()),
+        "put" => parse_put(&args[1..]),
+        "get" => Operation::Get(args.get(1).expect(USAGE).to_string()),
+        "subscribe" => Operation::Sub(args.get(2).expect(USAGE).to_string()),
+        "unsubscribe" => Operation::Unsub(args.get(2).expect(USAGE).to_string()),
         _ => panic!("{}", USAGE)
     };
     Request { id, operation }
@@ -142,15 +142,10 @@ fn main() {
     loop{
         println!("{}", USAGE);
         println!("Enter command: ");
+
         let mut input = String::new();
         io::stdin().read_line(&mut input).expect("failed to read line");
         let args: Vec<String> = input.split_whitespace().map(|s| s.to_string()).collect();
-        for message in &args{
-            if message == "exit"{
-                return;
-            }
-            println!("{}", message);
-        }
         let request = parse_args(args.clone());
         request.send(&connection);
     }
