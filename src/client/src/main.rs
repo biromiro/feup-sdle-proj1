@@ -4,12 +4,12 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
 use std::env;
-use std::io;
 
 const IP_PREFIX: &'static str = "tcp://localhost";
 const SUB_PORT: &'static str = "5563";
 const PUB_PORT: &'static str = "5564";
 const USAGE: &'static str = "Usage:\n  put [-m/-f] <message/file> <topic_name>\n  get <id>\n  subscribe <id> <topic_name>\n  unsubscribe <id> <topic_name>";
+const TIMEOUT: i64 = 3000;
 
 enum Operation {
     Put(String, String),
@@ -24,14 +24,25 @@ struct Request {
 }
 
 impl Request {
-    fn send(&self, socket: &zmq::Socket) {
+    fn send(&self, ctx: &zmq::Context) {
         match &self.operation {
-            Operation::Put(topic, message) => put(socket, &topic, &message),
-            Operation::Sub(topic) => subscribe(socket, &self.id, &topic),
-            Operation::Unsub(topic) => unsubscribe(socket, &self.id, &topic),
-            Operation::Get(topic) => get(socket,&topic)
+            Operation::Put(topic, message) => put(ctx, &topic, &message),
+            Operation::Sub(topic) => subscribe(ctx, &self.id, &topic),
+            Operation::Unsub(topic) => unsubscribe(ctx, &self.id, &topic),
+            Operation::Get(topic) => get(ctx,&topic)
         }
     }
+}
+
+fn get_ack(socket: &zmq::Socket) -> Result<String, ()> {
+    println!("Waiting for reply...");
+    if socket.poll(zmq::POLLIN, TIMEOUT).unwrap() == 0 {
+        println!("Timeout!");
+        return Err(());
+    }
+    let response = socket.recv_string(0).expect("failed subscribing").unwrap();
+    println!("Received reply: {}", response);
+    Ok(response)
 }
 
 fn connect(ctx: &zmq::Context, sock_type: zmq::SocketType) -> zmq::Socket {
@@ -48,33 +59,27 @@ fn connect(ctx: &zmq::Context, sock_type: zmq::SocketType) -> zmq::Socket {
     connection
 }
 
-fn subscribe(socket: &zmq::Socket, id: &String, topic: &String) {
-    socket.set_identity(id.as_bytes()).unwrap();
-    socket.send_multipart(["sub", topic, id], 0).expect("failed subscribing");
-    println!("Waiting for reply...");
-    let response = socket.recv_multipart(0).expect("failed subscribing");
-
-    for message in &response {
-        print!("{}", message.escape_ascii());
-    }
-    
+fn subscribe(ctx: &zmq::Context, id: &String, topic: &String) {
+    let socket = connect(ctx, zmq::REQ);
+    socket.send_multipart(["sub", id, topic], 0).expect("failed subscribing");
+    get_ack(&socket).unwrap();
 }
 
-fn unsubscribe(socket: &zmq::Socket, id: &String, topic: &String) {
+fn unsubscribe(ctx: &zmq::Context, id: &String, topic: &String) {
+    let socket = connect(ctx, zmq::REQ);
     socket.send_multipart(["unsub", id, topic], 0).expect("failed unsubscribing");
     
-    let response = socket.recv_multipart(0).unwrap();
-    for message in &response{
-        println!("text: {}", message.escape_ascii());
-    }
+    get_ack(&socket).unwrap();
 }
 
-fn put(socket: &zmq::Socket, topic: &String, message: &String) {
+fn put(ctx: &zmq::Context, topic: &String, message: &String) {
+    let socket = connect(ctx, zmq::PUB);
     println!("putting [{}] : {}", topic, message);
     socket.send_multipart([topic, message], 0).unwrap();
 }
 
-fn get(socket: &zmq::Socket, topic: &String) {
+fn get(ctx: &zmq::Context, topic: &String) {
+    let socket = connect(ctx, zmq::REQ);
     socket.send_multipart([topic],0).unwrap();
 
     let response = socket.recv_multipart(0).unwrap();
@@ -111,16 +116,16 @@ fn parse_put(args: &[String]) -> Operation {
 }
 
 fn parse_args(args: Vec<String>) -> Request {
-    if args.len() < 2 || args.len() > 4 {
+    if args.len() < 3 || args.len() > 5 {
         panic!("{}", USAGE);
     }
-    let mode = String::from(&args[0]);
-    let id = String::from(&args[1]);
+    let mode = String::from(&args[1]);
+    let id = String::from(&args[2]);
     let operation = match mode.as_str() {
-        "put" => parse_put(&args[1..]),
-        "get" => Operation::Get(args.get(1).expect(USAGE).to_string()),
-        "subscribe" => Operation::Sub(args.get(2).expect(USAGE).to_string()),
-        "unsubscribe" => Operation::Unsub(args.get(2).expect(USAGE).to_string()),
+        "put" => parse_put(&args[2..]),
+        "get" => Operation::Get(args.get(2).expect(USAGE).to_string()),
+        "subscribe" => Operation::Sub(args.get(3).expect(USAGE).to_string()),
+        "unsubscribe" => Operation::Unsub(args.get(3).expect(USAGE).to_string()),
         _ => panic!("{}", USAGE)
     };
     Request { id, operation }
@@ -135,23 +140,7 @@ fn store_msg_file(msg: &str, file_path: &str) {
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    let connection = connect(&zmq::Context::new(), zmq::REQ);
-    for message in args{
-        println!("{}", message);
-    }
-    loop{
-        println!("{}", USAGE);
-        println!("Enter command: ");
-
-        let mut input = String::new();
-        io::stdin().read_line(&mut input).expect("failed to read line");
-        let args: Vec<String> = input.split_whitespace().map(|s| s.to_string()).collect();
-        let request = parse_args(args.clone());
-        request.send(&connection);
-    }
-    /*
     let request = parse_args(args);
     let context = zmq::Context::new();
     request.send(&context);
-    */
 }

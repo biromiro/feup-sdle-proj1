@@ -9,11 +9,10 @@ fn handle_put(sub: &zmq::Socket) {
     println!("{}", message);
 }
 
-fn handle_sub(reply: &zmq::Socket, topic: &[u8], topics: &mut HashMap<String,Vec<String>>, sub_id : String) -> Result<(), zmq::Error> {
+fn handle_sub(reply: &zmq::Socket, topics: &mut HashMap<String,Vec<String>>, sub_id : String, topic: &[u8]) -> Result<(), zmq::Error> {
     println!("subscribed to [{}]", topic.escape_ascii());
     let topic = String::from_utf8(topic.to_vec()).unwrap();
-
-    let mut ack = String::from("ACK: Subscribed sucesfully");
+    let mut ack = String::from("ACK: Subscribed sucessfully");
     if topics.contains_key(&topic) {
         let topic_vec = topics.get(&topic).unwrap();
         if topic_vec.contains(&sub_id) {
@@ -36,9 +35,8 @@ fn handle_sub(reply: &zmq::Socket, topic: &[u8], topics: &mut HashMap<String,Vec
     reply.send_multipart([&ack], 0)
 }
 
-fn handle_unsub(sub: &zmq::Socket,reply: &zmq::Socket, topic: &[u8], topics: &mut HashMap<String,Vec<String>>) -> Result<(), zmq::Error> {
+fn handle_unsub(reply: &zmq::Socket, topics: &mut HashMap<String,Vec<String>>, sub_id : String, topic: &[u8]) -> Result<(), zmq::Error> {
     println!("unsubscribed from [{}]", topic.escape_ascii());
-    sub.set_unsubscribe(topic).unwrap();
     let ack = String::from("ACK: Unsubscribed sucesfully");
     reply.send_multipart([&ack], 0)
 }
@@ -47,23 +45,24 @@ fn handle_get() {
     
 }
 
-fn handle_request(req: &zmq::Socket, sub: &zmq::Socket,topics: &mut HashMap<String,Vec<String>>) -> Result<(), zmq::Error> {
+fn handle_request(req: &zmq::Socket, topics: &mut HashMap<String,Vec<String>>) -> Result<(), zmq::Error> {
     let messages = req.recv_multipart(0).unwrap();
     println!("Got request:");
     for message in &messages {
         println!("text: {}", message.escape_ascii());
     }
     let request = std::str::from_utf8(messages.get(0).unwrap()).unwrap();
+    let id = &messages.get(1).unwrap()[..];
+    let id_string = String::from_utf8(id.to_vec()).unwrap();
     match request {
         "sub" => {
-            let topic = &messages.get(1).unwrap()[..];
-            let id = &messages.get(2).unwrap()[..];
-            let sub_id = String::from_utf8(id.to_vec()).unwrap();
-            handle_sub(req ,topic,topics, sub_id)
+            let topic = &messages.get(2).unwrap()[..];
+            
+            handle_sub(req, topics, id_string, topic)
         }
         "unsub" => {
-            let topic = &messages.get(1).unwrap()[..];
-            handle_unsub(sub, req, topic,topics)
+            let topic = &messages.get(2).unwrap()[..];
+            handle_unsub(req, topics,id_string,topic)
         }
         "get" => {
             Ok(handle_get())
@@ -75,10 +74,8 @@ fn handle_request(req: &zmq::Socket, sub: &zmq::Socket,topics: &mut HashMap<Stri
 fn main() {
     let context = zmq::Context::new();
     let reply = context.socket(zmq::REP).expect("failed to create router socket");
-    let sub = context.socket(zmq::SUB).expect("failed to create sub socket");
 
     reply.bind("tcp://*:5563").expect("couldn't bind router socket");
-    sub.bind("tcp://*:5564").expect("couldn't bind sub socket");
     println!("ok. looping...");
     
     let mut topics: HashMap<String, Vec<String>> = HashMap::new();
@@ -87,15 +84,11 @@ fn main() {
     loop {
         let mut items = [
             reply.as_poll_item(zmq::POLLIN),
-            sub.as_poll_item(zmq::POLLIN),
         ];
         zmq::poll(&mut items, -1).unwrap();
         println!("here!!");
         if items[0].is_readable() {
-            handle_request(&reply, &sub,&mut topics).unwrap();
-        }
-        if items[1].is_readable() {
-            handle_put(&sub);
+            handle_request(&reply, &mut topics).unwrap();
         }
     }
 }
