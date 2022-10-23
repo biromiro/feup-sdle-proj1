@@ -135,6 +135,7 @@ class PubSubInstance:
     async def handle_put(self, id, topic, message):
         if not self.model.subs.hasSubscribers(topic):
             await self.send(id, b'ACK')
+            return
         # subbed
         message_id = self.model.msg_pool.add(message)
         for subscriber in self.model.subs.getSubscribers(topic):
