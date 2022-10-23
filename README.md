@@ -18,7 +18,7 @@ Implementing this service also prompted discussion, allowing for a deeper unders
 these types of systems such as the impossibility of perfect
 exactly-once delivery and information durability.
 
-# Usage
+# How to run
 
 ## Server
 
@@ -28,7 +28,7 @@ The server can be runned using the following command, inside the ``src`` folder
 python3 server.py [-h] (-a | -p) {0 , 1}
 ``` 
 Where:
-- ``-h`` outputs 
+- ``-h`` outputs a help message
 - ``-a`` or ``-p`` are required and decide whereas the server will be active or passive, respectively
 - {0 , 1} decide which server to use
 
@@ -39,7 +39,7 @@ The client can be runned using the following command, inside the ``src`` folder
 python3 client.py [-h] (operation)
 ```
 Where:
-- ``-h`` outputs
+- ``-h`` outputs a help message
 - ``operation`` is the desired operation from the avaliable set of operations ``(get, put, subscribe, unsubscribe)``
 
 ### Get
