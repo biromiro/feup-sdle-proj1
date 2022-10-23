@@ -69,14 +69,15 @@ def arg_parse():
 
 def main():
     args = arg_parse()
+
     server = ['tcp://127.0.0.1:5563', 'tcp://127.0.0.1:5564']
     server_nbr = 0
+
     ctx = zmq.Context()
     socket = ctx.socket(zmq.REQ)
-    socket.connect(server[server_nbr])
     poller = zmq.Poller()
     poller.register(socket, zmq.POLLIN)
-    request = REQUEST_DICT[args.command](args, socket)
+    request = REQUEST_DICT[args.command](args, socket, server[server_nbr])
     request.send()
 
     while True:
@@ -84,24 +85,23 @@ def main():
         if reply is not None:
             print(f"I: server replied OK {reply}")
             break
-        else:
-            print(f"W: no response from server, failing over")
-            sleep(SETTLE_DELAY / 1000)
-            poller.unregister(socket)
-            socket.close()
-            server_nbr = (server_nbr + 1)
-            if (server_nbr >= len(server)):
-                print('E: servers seem to be offline, abandoning')
-                break
-            print(f"I: connecting to server at {server[server_nbr]}..")
-            socket = ctx.socket(zmq.REQ)
-            poller.register(socket, zmq.POLLIN)
-            # reconnect and resend request
-            socket.connect(server[server_nbr])
-            request = REQUEST_DICT[args.command](args, socket)
-            request.send()
 
-    socket.close()
+        print(f"W: no response from server, failing over")
+        sleep(SETTLE_DELAY / 1000)
+        poller.unregister(socket)
+        socket.close()
+        server_nbr = (server_nbr + 1)
+        if (server_nbr >= len(server)):
+            print('E: servers seem to be offline, abandoning')
+            break
+        print(f"I: connecting to server at {server[server_nbr]}..")
+        socket = ctx.socket(zmq.REQ)
+        poller.register(socket, zmq.POLLIN)
+        # reconnect and resend request
+        socket.connect(server[server_nbr])
+        request = REQUEST_DICT[args.command](args, socket)
+        request.send()
+
     return 0
 
 

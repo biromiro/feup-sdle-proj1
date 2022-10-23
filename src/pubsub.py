@@ -1,5 +1,7 @@
 import asyncio
 
+from zmq import ZMQError
+
 
 class MessagePool:
     def __init__(self):
@@ -57,8 +59,13 @@ class MessageQueues:
     def pop(self, sub, topic):
         # nothing to pop
         if sub not in self.queues.keys() or topic not in self.queues[sub].keys() or len(self.queues[sub][topic]) == 0:
-            return
+            return None
         return self.queues[sub][topic].pop(0)
+
+    def peek(self, sub, topic):
+        if sub not in self.queues.keys() or topic not in self.queues[sub].keys() or len(self.queues[sub][topic]) == 0:
+            return None
+        return self.queues[sub][topic][0]
 
     def get_all(self, sub, topic):
         # nothing to get
@@ -78,6 +85,7 @@ class Subscriptions:
         return self.subs[topic]
 
     def add(self, id, topic):
+        print("subs:", self.subs)
         if topic not in self.subs.keys():
             self.subs[topic] = [id]
         else:
@@ -119,29 +127,38 @@ class PubSubInstance:
         await loop.create_task(self.handle_request())
 
     async def send(self, id, message):
-        await self.reply.send_multipart([id, b"", message])
+        try:
+            await self.reply.send_multipart([id, b"", message])
+        except ZMQError as e:
+            print(f"ZMQError: send failed - {str(e)}")
 
     async def handle_put(self, id, topic, message):
         if not self.pub_sub.subs.hasSubscribers(topic):
             await self.send(id, b'ACK')
-            return
         # subbed
         message_id = self.pub_sub.msg_pool.add(message)
         for subscriber in self.pub_sub.subs.getSubscribers(topic):
             self.pub_sub.queues.add(subscriber, topic, message_id)
+
         await self.send(id, b'ACK')
 
     async def handle_get(self, id, topic):
         # nothing in queue
-        result = self.pub_sub.queues.pop(id, topic)
+        result = self.pub_sub.queues.peek(id, topic)
         if result is None:
             await self.send(id, b'N/A')
             return
 
         message = self.pub_sub.msg_pool.get(result)
 
+        try:
+            await self.reply.send_multipart([id, b"", message])
+        except ZMQError as e:
+            print(f"ZMQError: send failed - {str(e)}")
+            return
+
+        self.pub_sub.queues.pop(id, topic)
         self.pub_sub.msg_pool.cleanup(id, topic, self.pub_sub.queues)
-        await self.send(id, message)
 
     async def handle_sub(self, id, topic):
         await self.send(id, self.pub_sub.subs.add(id, topic))
@@ -159,6 +176,7 @@ class PubSubInstance:
 
     async def handle_request(self):
         messages = await self.reply.recv_multipart()
+        await asyncio.sleep(3)
         for message in messages:
             print(message)
         id = messages[0]

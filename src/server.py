@@ -44,7 +44,7 @@ async def pub_sub_loop(pub_sub):
 async def main():
     context = zmq.asyncio.Context()
     reply = context.socket(zmq.ROUTER)
-    #reply.setsockopt(zmq.ROUTER_MANDATORY, 1)
+    reply.setsockopt(zmq.ROUTER_MANDATORY, 1)
     reply.bind('tcp://127.0.0.1:5563')
 
     pub_sub_info = get_state()

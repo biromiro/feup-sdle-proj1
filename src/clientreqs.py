@@ -2,23 +2,23 @@ import zmq
 
 
 class Request:
-    def __init__(self, args, socket):
+    def __init__(self, args, socket, server):
         socket.setsockopt(zmq.IDENTITY, args.id)
-        socket.connect('tcp://127.0.0.1:5563')
+        socket.connect(server)
         self.socket = socket
 
     def send(self):
         pass
 
     def get_ack(self):
-        if self.socket.poll(timeout=3000) != 0:
+        if self.socket.poll(timeout=10000) != 0:
             response = self.socket.recv()
-            print(response)
+            return response
 
 
 class Put(Request):
-    def __init__(self, args, socket):
-        socket.connect('tcp://127.0.0.1:5563')
+    def __init__(self, args, socket, server):
+        socket.connect(server)
         self.socket = socket
         self.topic = args.topic
         self.message = args.text
@@ -28,8 +28,8 @@ class Put(Request):
 
 
 class Subscribe(Request):
-    def __init__(self, args, socket):
-        super().__init__(args, socket)
+    def __init__(self, args, socket, server):
+        super().__init__(args, socket, server)
         self.topic = args.topic
 
     def send(self):
@@ -37,8 +37,8 @@ class Subscribe(Request):
 
 
 class Unsubscribe(Request):
-    def __init__(self, args, socket):
-        super().__init__(args, socket)
+    def __init__(self, args, socket, server):
+        super().__init__(args, socket, server)
         self.topic = args.topic
 
     def send(self):
@@ -46,8 +46,8 @@ class Unsubscribe(Request):
 
 
 class Get(Request):
-    def __init__(self, args, socket):
-        super().__init__(args, socket)
+    def __init__(self, args, socket, server):
+        super().__init__(args, socket, server)
         self.topic = args.topic
 
     def send(self):
