@@ -5,8 +5,9 @@ import asyncio
 import pickle
 import sys
 import os.path
-import threading
 from pubsub import PubSubInfo, PubSubInstance
+from binarystar import BinaryStar
+import serverlist
 
 # topic -> subscriber
 #subs = {}
@@ -17,7 +18,6 @@ from pubsub import PubSubInfo, PubSubInstance
 #msg_id = 0
 
 STATE_FILE_NAME = './server_files/state.pickle'
-
 
 def get_state():
     obj = None
@@ -43,18 +43,23 @@ async def pub_sub_loop(pub_sub):
 
 async def main():
     context = zmq.asyncio.Context()
-    reply = context.socket(zmq.ROUTER)
-    reply.setsockopt(zmq.ROUTER_MANDATORY, 1)
-    reply.bind('tcp://127.0.0.1:5563')
 
     pub_sub_info = get_state()
     if pub_sub_info is None:
         pub_sub_info = PubSubInfo()
+    
+    reply = context.socket(zmq.ROUTER)
+    reply.setsockopt(zmq.ROUTER_MANDATORY, 1)
+    address = serverlist.servers[0] # choose with args
+    reply.bind(address)
 
     pub_sub = PubSubInstance(pub_sub_info, reply)
+    role = 'active' # choose with args
+    binary_star = BinaryStar(pub_sub, context.socket(zmq.PAIR), role)
 
     task_1 = asyncio.create_task(save_state_to_file(pub_sub_info))
     task_2 = asyncio.create_task(pub_sub_loop(pub_sub))
+    #task_3 = asyncio.create_task(binary_star(pub_sub_info))
 
     await asyncio.gather(
         task_1,
@@ -65,5 +70,5 @@ async def main():
 if __name__ == '__main__':
 
     if sys.platform:
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+        asyncio.set_event_loop_policy(None)
     asyncio.run(main())
