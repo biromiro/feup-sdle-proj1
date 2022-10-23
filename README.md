@@ -4,10 +4,10 @@ SDLE First Assignment of group T05G11.
 
 Group members:
 
-1. &lt;João&gt; &lt;Baltazar&gt; (&lt;up201905616@up.pt&gt;)
-2. &lt;Luís&gt; &lt;Lucas&gt; (&lt;up201904624@up.pt&gt;)
-3. &lt;Nuno&gt; &lt;Costa&gt; (&lt;up201906272@up.pt&gt;)
-4. &lt;Pedro&gt; &lt;Nunes&gt; (&lt;up201905396@up.pt&gt;)
+1. João Baltazar (up201905616@up.pt)
+2. Luís Lucas (up201904624@up.pt)
+3. Nuno Costa (up201906272@up.pt)
+4. Pedro Nunes (up201905396@up.pt)
 
 # Description
 
