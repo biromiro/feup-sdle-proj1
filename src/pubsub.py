@@ -1,6 +1,6 @@
 import asyncio
 
-from zmq import ZMQError
+from zmq import ZMQError, Poller, POLLIN
 
 
 class MessagePool:

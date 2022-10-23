@@ -47,12 +47,11 @@ class BinaryStar:
             await self.pair.send(val)
             await asyncio.sleep(5)
         if self.role == 'passive':
-            res = await self.pair.poll(timeout=15000)
+            res = await self.pair.poll(timeout=10000)
             if res == 0:
                 self.role = 'active'
                 self.pair.disconnect(PAIR_ADDR)
                 self.setup_pair_socket()
-
                 print('Active instance has failed, taking over')
             else:
                 response = await self.pair.recv()

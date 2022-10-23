@@ -11,7 +11,7 @@ class Request:
         pass
 
     def get_ack(self):
-        if self.socket.poll(timeout=10000) != 0:
+        if self.socket.poll(timeout=5000) != 0:
             response = self.socket.recv()
             return response
 

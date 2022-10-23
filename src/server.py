@@ -33,7 +33,10 @@ async def main(args):
     context = zmq.asyncio.Context()
 
     reply = context.socket(zmq.ROUTER)
+    # monitor reply reception
     reply.setsockopt(zmq.ROUTER_MANDATORY, 1)
+    # time out stray messages due to bstar
+    reply.setsockopt(zmq.LINGER, 5000)
     # choose with args
     address = serverlist.SERVERS[args.port]
     try:
