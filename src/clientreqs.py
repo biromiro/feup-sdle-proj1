@@ -25,7 +25,6 @@ class Put(Request):
 
     def send(self):
         self.socket.send_multipart([b'put', self.topic, self.message])
-        self.get_ack()
 
 
 class Subscribe(Request):
@@ -35,7 +34,6 @@ class Subscribe(Request):
 
     def send(self):
         self.socket.send_multipart([b'sub', self.topic])
-        self.get_ack()
 
 
 class Unsubscribe(Request):
@@ -45,7 +43,6 @@ class Unsubscribe(Request):
 
     def send(self):
         self.socket.send_multipart([b'unsub', self.topic])
-        self.get_ack()
 
 
 class Get(Request):
@@ -55,4 +52,3 @@ class Get(Request):
 
     def send(self):
         self.socket.send_multipart([b'get', self.topic])
-        self.get_ack()
