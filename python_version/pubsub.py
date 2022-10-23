@@ -1,3 +1,6 @@
+import asyncio
+
+
 class MessagePool:
     def __init__(self):
         self.pool = {}
@@ -109,38 +112,42 @@ class PubSubInstance:
         self.pub_sub = pub_sub_info
         self.reply = reply
 
-    def loop(self):
-        while True:
-            self.reply.poll()
-            self.handle_request()
+    async def loop(self):
+        await self.reply.poll()
+        loop = asyncio.get_event_loop()
+        loop.create_task(self.loop())
+        await loop.create_task(self.handle_request())
 
-    def handle_put(self, topic, message):
+    async def send(self, id, message):
+        await self.reply.send_multipart([id, b"", message])
+
+    async def handle_put(self, id, topic, message):
         if not self.pub_sub.subs.hasSubscribers(topic):
-            self.reply.send(b'ACK')
+            await self.send(id, b'ACK')
             return
         # subbed
         message_id = self.pub_sub.msg_pool.add(message)
         for subscriber in self.pub_sub.subs.getSubscribers(topic):
             self.pub_sub.queues.add(subscriber, topic, message_id)
-        self.reply.send(b'ACK')
+        await self.send(id, b'ACK')
 
-    def handle_get(self, id, topic):
+    async def handle_get(self, id, topic):
         # nothing in queue
         result = self.pub_sub.queues.pop(id, topic)
         if result is None:
-            self.reply.send(b'N/A')
+            await self.send(id, b'N/A')
             return
 
         message = self.pub_sub.msg_pool.get(result)
 
         self.pub_sub.msg_pool.cleanup(id, topic, self.pub_sub.queues)
-        self.reply.send(message)
+        await self.send(id, message)
 
-    def handle_sub(self, id, topic):
-        self.reply.send(self.pub_sub.subs.add(id, topic))
+    async def handle_sub(self, id, topic):
+        await self.send(id, self.pub_sub.subs.add(id, topic))
 
-    def handle_unsub(self, id, topic):
-        self.reply.send(self.pub_sub.subs.remove(id, topic))
+    async def handle_unsub(self, id, topic):
+        await self.send(id, self.pub_sub.subs.remove(id, topic))
         discarded_messages = self.pub_sub.queues.get_all(id, topic)
         if discarded_messages is None:
             return
@@ -150,28 +157,24 @@ class PubSubInstance:
             self.pub_sub.msg_pool.cleanup(
                 message_id, topic, self.pub_sub.queues)
 
-    def handle_request(self):
-        messages = self.reply.recv_multipart()
+    async def handle_request(self):
+        messages = await self.reply.recv_multipart()
         for message in messages:
             print(message)
+        id = messages[0]
+        request = messages[2]
+        if request == b'avail':
+            await self.send(id, b'YES')
+        topic = messages[3]
+        if request == b'put':
+            message = messages[4]
+            await self.handle_put(id, topic, message)
+        elif request == b'sub':
+            await self.handle_sub(id, topic)
+        elif request == b'unsub':
+            await self.handle_unsub(id, topic)
+        elif request == b'get':
+            await self.handle_get(id, topic)
 
-        if messages[0] == b'put':
-            topic = messages[1]
-            message = messages[2]
-            self.handle_put(topic, message)
-        elif messages[0] == b'sub':
-            id = messages[1]
-            topic = messages[2]
-            self.handle_sub(id, topic)
-        elif messages[0] == b'unsub':
-            id = messages[1]
-            topic = messages[2]
-            self.handle_unsub(id, topic)
-        elif messages[0] == b'get':
-            id = messages[1]
-            topic = messages[2]
-            self.handle_get(id, topic)
-        elif messages[0] == b'avail':
-            self.reply.send(b'YES')
         else:
-            print('unexpected message!!')
+            print('Unexpected request: ' + request)

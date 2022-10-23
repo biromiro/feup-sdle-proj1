@@ -4,8 +4,9 @@ import argparse
 
 class Request:
     def __init__(self, args, socket):
+        socket.setsockopt(zmq.IDENTITY, args.id)
+        socket.connect('tcp://127.0.0.1:5563')
         self.socket = socket
-        self.id = args.id
 
     def send(self):
         pass
@@ -18,6 +19,7 @@ class Request:
 
 class Put(Request):
     def __init__(self, args, socket):
+        socket.connect('tcp://127.0.0.1:5563')
         self.socket = socket
         self.topic = args.topic
         self.message = args.text
@@ -33,7 +35,7 @@ class Subscribe(Request):
         self.topic = args.topic
 
     def send(self):
-        self.socket.send_multipart([b'sub', self.id, self.topic])
+        self.socket.send_multipart([b'sub', self.topic])
         self.get_ack()
 
 
@@ -43,8 +45,9 @@ class Unsubscribe(Request):
         self.topic = args.topic
 
     def send(self):
-        self.socket.send_multipart([b'unsub', self.id, self.topic])
+        self.socket.send_multipart([b'unsub', self.topic])
         self.get_ack()
+
 
 class Get(Request):
     def __init__(self, args, socket):
@@ -52,7 +55,7 @@ class Get(Request):
         self.topic = args.topic
 
     def send(self):
-        self.socket.send_multipart([b'get', self.id, self.topic])
+        self.socket.send_multipart([b'get', self.topic])
         self.get_ack()
 
 
@@ -117,13 +120,13 @@ def arg_parse():
     return args
 
 
-
 def main():
     args = arg_parse()
     context = zmq.Context()
     socket = context.socket(zmq.REQ)
-    with socket.connect('tcp://127.0.0.1:5563') as req:
-        request = REQUEST_DICT[args.command](args, req)
-        request.send()
+    request = REQUEST_DICT[args.command](args, socket)
+    request.send()
 
-main()
+
+if __name__ == '__main__':
+    main()
