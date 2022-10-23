@@ -7,7 +7,7 @@ from binarystar import BinaryStar
 import serverlist
 from argparse import ArgumentParser
 from aux_func import get_state
-# topic -> subscriber
+# topic -> [subscriber]
 #subs = {}
 # subscriber -> topic -> [message_id]
 #queues = {}
@@ -23,10 +23,6 @@ def parse_args():
     group.add_argument("-a", "--active", action="store_true", default=False)
     group.add_argument("-p", "--passive", action="store_true", default=False)
     return parser.parse_args()
-
-
-# async def pub_sub_loop(pub_sub):
-#    await pub_sub.loop()
 
 
 async def main(args):

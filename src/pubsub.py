@@ -180,8 +180,6 @@ class PubSubInstance:
             print(message)
         id = messages[0]
         request = messages[2]
-        if request == b'avail':
-            await self.send(id, b'YES')
         topic = messages[3]
         if request == b'put':
             message = messages[4]
@@ -192,6 +190,5 @@ class PubSubInstance:
             await self.handle_unsub(id, topic)
         elif request == b'get':
             await self.handle_get(id, topic)
-
         else:
             print('Unexpected request: ' + request)
