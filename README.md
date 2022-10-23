@@ -11,12 +11,11 @@ Group members:
 
 # Description
 
-A publish/subscribe service is one of many possible messaging patterns typically used as a part of a message-oriented middleware (MOM) in distributed systems. This project’s goal is to implement a reliable version of this service. The goal was achieved and the system meets the specifications. In this report, we showcase our implementation of the
-service, while carefully explaining its reliability and failure
-scenarios and discussing possible improvements.
-Implementing this service also prompted discussion, allowing for a deeper understanding of some difficulties in
-these types of systems such as the impossibility of perfect
-exactly-once delivery and information durability.
+ A publish/subscribe service is one of many possible messaging patterns typically used as a part of a message-oriented middleware (MOM) in distributed systems. This project's goal is to implement a reliable version of this service, using the *ZeroMQ* library.
+    
+The goal was achieved and the system meets the specifications. In this report, we showcase our implementation of the service using *Python*, while carefully explaining its reliability and failure scenarios and discussing possible improvements.
+
+Implementing this service also prompted discussion, allowing for a deeper understanding of some difficulties in these types of systems such as the impossibility of perfect *exactly-once* delivery, information durability and server resilience and availability.
 
 # How to run
 
