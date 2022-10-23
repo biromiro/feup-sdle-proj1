@@ -15,4 +15,3 @@ Cargo.lock
 .fake
 
 src/__pycache__/
-src/server_files/
