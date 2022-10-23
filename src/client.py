@@ -73,6 +73,8 @@ def main():
 
     ctx = zmq.Context()
 
+    connected = False
+
     for server in serverlist.SERVERS:
         print(f"I: connecting to server at {server}..")
         socket = ctx.socket(zmq.REQ)
