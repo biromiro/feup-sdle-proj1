@@ -22,7 +22,7 @@ exactly-once delivery and information durability.
 
 ## Server
 
-The server can be runned using the following command, inside the ``src`` folder
+The server can run using the following command, inside the ``src`` folder
 
 ```
 python3 server.py [-h] (-a | -p) {0 , 1}
@@ -33,7 +33,7 @@ Where:
 - {0 , 1} decide which server to use
 
 ## Client
-The client can be runned using the following command, inside the ``src`` folder
+The client can run using the following command, inside the ``src`` folder
 
 ```
 python3 client.py [-h] (operation)
@@ -43,7 +43,7 @@ Where:
 - ``operation`` is the desired operation from the avaliable set of operations ``(get, put, subscribe, unsubscribe)``
 
 ### Get
-A get command can be runned using the following command
+A get command can run using the following command
 ```
 python3 client.py get <id> <topic>
 ```
@@ -51,7 +51,7 @@ Where:
 - ``<id>`` is the client ID.
 - ``<topic>`` is the topic we want to get from.
 ### Put
-A put command can be runned using the following command
+A put command can run using the following command
 ```
 python3 client.py put (-t TEXT | -f FILE) <topic>
 ```
@@ -59,7 +59,7 @@ Where:
 - ``-t`` or ``-f`` are required and decides if we're putting text from the console or from a file. ``TEXT`` is the desired text and ``FILE`` is the filepath.
 - ``<topic>`` is the desired publishing topic.
 ### Subscribe
-A subscription command can be runned using the following command
+A subscription command can run using the following command
 ```
 python3 client.py subscribe <id> <topic>
 ```
