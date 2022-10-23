@@ -1,14 +1,12 @@
 import zmq
 import zmq.asyncio
-import aiofiles
 import asyncio
-import pickle
 import sys
-import os.path
 from pubsub import PubSubInfo, PubSubInstance
 from binarystar import BinaryStar
 import serverlist
-
+from argparse import ArgumentParser
+from aux_func import get_state
 # topic -> subscriber
 #subs = {}
 # subscriber -> topic -> [message_id]
@@ -17,58 +15,53 @@ import serverlist
 #msg_pools = {}
 #msg_id = 0
 
-STATE_FILE_NAME = './server_files/state.pickle'
 
-def get_state():
-    obj = None
-    if os.path.isfile(STATE_FILE_NAME):
-        with open(STATE_FILE_NAME, mode='rb') as infile:
-            obj = pickle.load(infile)
-            print(obj)
-    return obj
-
-
-async def save_state_to_file(pub_sub):
-    while True:
-        async with aiofiles.open(STATE_FILE_NAME, 'wb') as outfile:
-            print(f"Saving state...")
-            val = pickle.dumps(pub_sub)
-            await outfile.write(val)
-        await asyncio.sleep(2)
+def parse_args():
+    parser = ArgumentParser()
+    parser.add_argument('port', choices=[0, 1], type=int)
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("-a", "--active", action="store_true", default=False)
+    group.add_argument("-p", "--passive", action="store_true", default=False)
+    return parser.parse_args()
 
 
-async def pub_sub_loop(pub_sub):
-    await pub_sub.loop()
+# async def pub_sub_loop(pub_sub):
+#    await pub_sub.loop()
 
 
-async def main():
+async def main(args):
     context = zmq.asyncio.Context()
 
-    pub_sub_info = get_state()
-    if pub_sub_info is None:
-        pub_sub_info = PubSubInfo()
-    
     reply = context.socket(zmq.ROUTER)
     reply.setsockopt(zmq.ROUTER_MANDATORY, 1)
-    address = serverlist.servers[0] # choose with args
-    reply.bind(address)
+    # choose with args
+    address = serverlist.SERVERS[args.port]
+    try:
+        reply.bind(address)
+    except zmq.error.ZMQBaseError as e:
+        print('Failed to bind to pair socket, is there another active instance?')
+        return
+
+    pub_sub_info = get_state(args.port)
+    if pub_sub_info is None:
+        pub_sub_info = PubSubInfo()
 
     pub_sub = PubSubInstance(pub_sub_info, reply)
-    role = 'active' # choose with args
-    binary_star = BinaryStar(pub_sub, context.socket(zmq.PAIR), role)
+    role = 'active' if args.active else 'passive'
+    binary_star = BinaryStar(
+        pub_sub, context.socket(zmq.PAIR), role, args.port)
 
-    task_1 = asyncio.create_task(save_state_to_file(pub_sub_info))
-    task_2 = asyncio.create_task(pub_sub_loop(pub_sub))
-    #task_3 = asyncio.create_task(binary_star(pub_sub_info))
+    loop = asyncio.get_event_loop()
 
-    await asyncio.gather(
-        task_1,
-        task_2
-    )
+    await loop.create_task(binary_star.run())
 
 
 if __name__ == '__main__':
+    args = parse_args()
 
-    if sys.platform:
+    if sys.platform.startswith('linux'):
         asyncio.set_event_loop_policy(None)
-    asyncio.run(main())
+    else:
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+    asyncio.run(main(args))

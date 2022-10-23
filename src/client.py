@@ -73,12 +73,12 @@ def main():
 
     ctx = zmq.Context()
 
-    for server in serverlist.servers:
+    for server in serverlist.SERVERS:
         print(f"I: connecting to server at {server}..")
         socket = ctx.socket(zmq.REQ)
         request = REQUEST_DICT[args.command](args, socket, server)
         request.send()
-        
+
         reply = request.get_ack()
         if reply is not None:
             connected = True
@@ -86,13 +86,13 @@ def main():
 
         print(f"W: no response from server, failing over")
         sleep(SETTLE_DELAY / 1000)
-        socket.close()
+        socket.close(linger=0)
 
     if connected:
         print(f"I: server replied OK {reply}")
     else:
         print('E: servers seem to be offline, abandoning')
-    
+
     return 0
 
 

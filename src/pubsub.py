@@ -117,7 +117,7 @@ class PubSubInfo:
 class PubSubInstance:
 
     def __init__(self, pub_sub_info, reply):
-        self.pub_sub = pub_sub_info
+        self.model = pub_sub_info
         self.reply = reply
 
     async def loop(self):
@@ -133,23 +133,23 @@ class PubSubInstance:
             print(f"ZMQError: send failed - {str(e)}")
 
     async def handle_put(self, id, topic, message):
-        if not self.pub_sub.subs.hasSubscribers(topic):
+        if not self.model.subs.hasSubscribers(topic):
             await self.send(id, b'ACK')
         # subbed
-        message_id = self.pub_sub.msg_pool.add(message)
-        for subscriber in self.pub_sub.subs.getSubscribers(topic):
-            self.pub_sub.queues.add(subscriber, topic, message_id)
+        message_id = self.model.msg_pool.add(message)
+        for subscriber in self.model.subs.getSubscribers(topic):
+            self.model.queues.add(subscriber, topic, message_id)
 
         await self.send(id, b'ACK')
 
     async def handle_get(self, id, topic):
         # nothing in queue
-        result = self.pub_sub.queues.peek(id, topic)
+        result = self.model.queues.peek(id, topic)
         if result is None:
             await self.send(id, b'N/A')
             return
 
-        message = self.pub_sub.msg_pool.get(result)
+        message = self.model.msg_pool.get(result)
 
         try:
             await self.reply.send_multipart([id, b"", message])
@@ -157,26 +157,25 @@ class PubSubInstance:
             print(f"ZMQError: send failed - {str(e)}")
             return
 
-        self.pub_sub.queues.pop(id, topic)
-        self.pub_sub.msg_pool.cleanup(id, topic, self.pub_sub.queues)
+        self.model.queues.pop(id, topic)
+        self.model.msg_pool.cleanup(id, topic, self.model.queues)
 
     async def handle_sub(self, id, topic):
-        await self.send(id, self.pub_sub.subs.add(id, topic))
+        await self.send(id, self.model.subs.add(id, topic))
 
     async def handle_unsub(self, id, topic):
-        await self.send(id, self.pub_sub.subs.remove(id, topic))
-        discarded_messages = self.pub_sub.queues.get_all(id, topic)
+        await self.send(id, self.model.subs.remove(id, topic))
+        discarded_messages = self.model.queues.get_all(id, topic)
         if discarded_messages is None:
             return
         # remove related messages from queue and pool
-        self.pub_sub.queues.remove(id, topic)
+        self.model.queues.remove(id, topic)
         for message_id in discarded_messages:
-            self.pub_sub.msg_pool.cleanup(
-                message_id, topic, self.pub_sub.queues)
+            self.model.msg_pool.cleanup(
+                message_id, topic, self.model.queues)
 
     async def handle_request(self):
         messages = await self.reply.recv_multipart()
-        await asyncio.sleep(3)
         for message in messages:
             print(message)
         id = messages[0]
