@@ -42,7 +42,7 @@ Where:
 - ``operation`` is the desired operation from the avaliable set of operations ``(get, put, subscribe, unsubscribe)``
 
 ### Get
-A get command can run using the following command
+To run a get command use the following
 ```
 python3 client.py get <id> <topic>
 ```
@@ -50,7 +50,7 @@ Where:
 - ``<id>`` is the client ID.
 - ``<topic>`` is the topic we want to get from.
 ### Put
-A put command can run using the following command
+To run a put command use the following
 ```
 python3 client.py put (-t TEXT | -f FILE) <topic>
 ```
@@ -58,7 +58,7 @@ Where:
 - ``-t`` or ``-f`` are required and decides if we're putting text from the console or from a file. ``TEXT`` is the desired text and ``FILE`` is the filepath.
 - ``<topic>`` is the desired publishing topic.
 ### Subscribe
-A subscription command can run using the following command
+To run a subscription command use the following
 ```
 python3 client.py subscribe <id> <topic>
 ```
@@ -66,6 +66,7 @@ Where:
 - ``<id>`` is the client ID.
 - ``<topic>`` is the desired topic for subscription.
 ### Unsubscribe
+To run a unsubscription command use the following
 ```
 python3 client.py unsubscribe <id> <topic>
 ```
